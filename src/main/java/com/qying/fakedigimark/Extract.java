@@ -13,7 +13,7 @@ public class Extract {
 
     public static void main(String[] args) {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-        extract("res_attack.bmp");
+        extract("res_attack2.bmp");
     }
 
     public static void extract(String filename){
@@ -69,52 +69,79 @@ public class Extract {
         int matrixWidth = blank.rows();
 
         //get Watermark
-        StringBuilder str = new StringBuilder();StringBuilder tmp = new StringBuilder();
+//        StringBuilder str = new StringBuilder();StringBuilder tmp = new StringBuilder();
+
         Random r=new Random(Settings.seed);//r.nextInt()
-        int embedlen = Settings.embedLength;int QUIET_ZONE_SIZE = Settings.QUIET_ZONE_SIZE;
+        int embedlen = Settings.embedLength;int embedtime = Settings.embedTimes;int QUIET_ZONE_SIZE = Settings.QUIET_ZONE_SIZE;
         int batchWidth = Settings.batchWidth;int batchNum = matrixWidth/batchWidth;
+        int[] extractArray = new int[embedlen*embedtime*8];
         Set<Integer> used = new HashSet<>();
-        for(int i=0;i<embedlen;i++){
-            for (int j = 0; j < 8; j++) {
-                int index = Math.abs(r.nextInt()) % (batchNum * batchNum);
+        for(int times = 0;times<embedtime;times++) {
+            for (int i = 0; i < embedlen; i++) {
+                for (int j = 0; j < 8; j++) {
+                    int index = Math.abs(r.nextInt()) % (batchNum * batchNum);
 
-                int row = index / batchNum;
-                int col = index % batchNum;
-                if ((row == 0 || row == batchNum - 1) || (col == 0 || col == batchNum - 1)) {
-                    System.out.println("检测区域不可用，Net randInt");
-                    j--;
-                } else if (used.contains(row * batchNum + col)) {
-                    System.out.println("这个区域已经用过，Net randInt");
-                    j--;
-                } else {
+                    int row = index / batchNum;
+                    int col = index % batchNum;
+                    if ((row == 0 || row == batchNum - 1) || (col == 0 || col == batchNum - 1)) {
+                        System.out.println("检测区域不可用，Net randInt");
+                        j--;
+                    } else if (used.contains(row * batchNum + col)) {
+                        System.out.println("这个区域已经用过，Net randInt");
+                        j--;
+                    } else {
+                        double k = 0.0;
+                        for(int rowBias=0;rowBias<=8;rowBias+=8){
+                            for(int colBias=0;colBias<=8;colBias+=8) {
+                                Mat block = ImgWatermarkUtil.getImageValue(blank, QUIET_ZONE_SIZE + row * batchWidth,
+                                        QUIET_ZONE_SIZE + col * batchWidth, 8);
+                                Core.dct(block, block);
 
-                    Mat block = ImgWatermarkUtil.getImageValue(blank, QUIET_ZONE_SIZE+row*batchWidth,
-                            QUIET_ZONE_SIZE+col*batchWidth, 8);
-                    Core.dct(block, block);
+                                double sum1 = 0, sum2 = 0;
+                                for (int z = 0; z < Settings.x.length; z++) {
+                                    int ind1 = Settings.x[z], ind2 = Settings.y[z];
+                                    sum1 += Math.abs(block.get(ind1, ind2)[0]);
+                                    sum2 += Math.abs(block.get(ind2, ind1)[0]);
+                                }
+                                k+= (sum2 - sum1);// > Settings.threshold) ? 1.0 : 0.0;
+                            }
+                        }
 
-                    double sum1 = 0, sum2 = 0;
-                    for (int z = 0; z < Settings.x.length; z++) {
-                        int ind1 = Settings.x[z], ind2 = Settings.y[z];
-                        sum1 += Math.abs(block.get(ind1, ind2)[0]);
-                        sum2 += Math.abs(block.get(ind2, ind1)[0]);
+                        int bit = (k>4*Settings.threshold)?1:0;
+                        //int k = (sum2 - sum1 > Settings.threshold) ? 1 : 0;
+                        System.out.println("Embedded in: " + row + " " + col + " " + bit);
+
+                        extractArray[times*(Settings.embedLength*8)+i*8+(7-j)] = bit;
+
+                        used.add(row * batchNum + col);
+                        //                    if(used.size()==(batchNum-1)*(batchNum-1))
+                        //                        throw new Exception("嵌入失败，容量超出");
+
+
                     }
-                    int k = (sum2-sum1>Settings.threshold)?1:0;
-                    System.out.println("Embedded in: " + row + " " + col + " " + k);
-                    tmp.insert(0,k);
-                    if(tmp.length()>=8){
-
-                        str.append((char)(int)(Integer.valueOf(tmp.toString(),2)));
-                        tmp = new StringBuilder();
-                    }
-                    used.add(row * batchNum + col);
-                    //                    if(used.size()==(batchNum-1)*(batchNum-1))
-                    //                        throw new Exception("嵌入失败，容量超出");
 
 
                 }
 
-
             }
+            System.out.println("Time "+times+" Finish.");
+        }
+
+        //转文字
+        StringBuilder str = new StringBuilder();
+        for(int i=0;i<embedlen*8;i++){
+            double sum = 0;
+            for(int j=0;j<embedtime*(embedlen*8);j+=(embedlen*8)){
+                sum+=extractArray[i+j];
+            }
+            extractArray[i] = (sum>embedtime/2.0)?1:0;
+        }
+        for(int i=0;i<embedlen;i++){
+            int sum = 0;
+            for(int j=0;j<8;j++){
+                sum+=extractArray[8*i+j]<<(7-j);
+            }
+            str.append((char)sum);
 
         }
 

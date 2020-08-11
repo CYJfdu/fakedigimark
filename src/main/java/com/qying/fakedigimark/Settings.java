@@ -9,10 +9,11 @@ public class Settings {
     public static int matrixWidth = 768;
     public static int matrixHeight = 1024;
     public static int batchWidth = 32;
-    public static int embedLength = 8;
+    public static int embedLength = 3;
     public static int QUIET_ZONE_SIZE = 8;
     public static int seed = 10;
     public static double threshold = 20.0;
+    public static int embedTimes = 5;
 
 
     public static double safeDistance = 32.0;
