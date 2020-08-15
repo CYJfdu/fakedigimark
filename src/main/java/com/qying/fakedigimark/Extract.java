@@ -66,7 +66,7 @@ public class Extract {
         listSrcs.add(fourth);
 //        blank = ImageUtil.warpPerspective(blank,listSrcs,listDsts);
 
-        int matrixWidth = blank.rows();
+        int matrixWidth = blank.cols();
 
         //get Watermark
 //        StringBuilder str = new StringBuilder();StringBuilder tmp = new StringBuilder();
