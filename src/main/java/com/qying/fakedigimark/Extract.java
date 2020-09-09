@@ -1,6 +1,7 @@
 package com.qying.fakedigimark;
 
 import com.qying.fakedigimark.Util.ImageUtil;
+import com.qying.fakedigimark.Util.PerspectiveTransform;
 import com.qying.fakedigimark.Util.ResultPoint;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -50,21 +51,54 @@ public class Extract {
                 }
             }
         }
-        //conduct warpPerspective
+
         ResultPoint.orderBestPatterns(keyPoints);
+        ResultPoint bottomLeft = keyPoints[0];
+        ResultPoint topLeft = keyPoints[1];
+        ResultPoint topRight = keyPoints[2];
+        //构造变换后的画布
         List<Point> listDsts = new LinkedList<>();
         listDsts.add(new Point(0,Settings.matrixHeight));
         listDsts.add(new Point(0,0));
         listDsts.add(new Point(Settings.matrixWidth,0));
         listDsts.add(new Point(Settings.matrixWidth,Settings.matrixHeight));
         List<Point> listSrcs = new LinkedList<>();
-        // 得到第4个点
-        Point fourth = new Point(keyPoints[2].getX()+keyPoints[0].getX()-keyPoints[1].getX(),
-                keyPoints[2].getY()+keyPoints[0].getY()-keyPoints[1].getY());
-        for(ResultPoint r:keyPoints)
-            listSrcs.add(new Point(r.getX(),r.getY()));
-        listSrcs.add(fourth);
-//        blank = ImageUtil.warpPerspective(blank,listSrcs,listDsts);
+
+        // 得到第4个点,靠make up
+        float bottomRightX;
+        float bottomRightY;
+        bottomRightX = (topRight.getX() - topLeft.getX()) + bottomLeft.getX();
+        bottomRightY = (topRight.getY() - topLeft.getY()) + bottomLeft.getY();
+        listSrcs.add(new Point(bottomRightX,bottomRightY));
+
+//        Point fourth = new Point(keyPoints[2].getX()+keyPoints[0].getX()-keyPoints[1].getX(),
+//                keyPoints[2].getY()+keyPoints[0].getY()-keyPoints[1].getY());
+//        for(ResultPoint r:keyPoints)
+//            listSrcs.add(new Point(r.getX(),r.getY()));
+//        listSrcs.add(fourth);
+        // 进行变换,conduct warpPerspective
+        blank = ImageUtil.warpPerspective(blank,listSrcs,listDsts);
+
+//        PerspectiveTransform.quadrilateralToQuadrilateral(
+//                3.5f,
+//                3.5f,
+//                Settings.matrixWidth,
+//                3.5f,
+//                Settings.matrixWidth,
+//                Settings.matrixHeight,
+//                3.5f,
+//                Settings.matrixHeight,
+//                keyPoints[0].getX(),
+//                keyPoints[0].getY(),
+//                keyPoints[1].getX(),
+//                keyPoints[1].getY(),
+//                bottomRightX,
+//                bottomRightY,
+//                keyPoints[2].getX(),
+//                keyPoints[2].getY());
+//        };
+
+        //------------------ 检测定位点与几何变换代码到此为止！！！---------------------------
 
         int matrixWidth = blank.cols();
 
